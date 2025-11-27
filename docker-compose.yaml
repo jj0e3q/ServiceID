@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pass123}
+      POSTGRES_DB: ${POSTGRES_DB:-main}
+    ports:
+      - "5433:5432" # localhost:5433 -> container:5432 To avoid local conflicts
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - sentinelid-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6380:6379"
+    networks:
+      - sentinelid-net
+
+  api:
+    build:
+      context: .
+      dockerfile: ./services/api/Dockerfile
+    container_name: gateway-api
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_KEYS_DIR: /keys
+    depends_on:
+      - postgres
+      - redis
+    ports:
+      - "8000:8000"
+    volumes:
+      - jwt_keys:/keys
+    networks:
+      - sentinelid-net
+
+volumes:
+  postgres_data:
+  jwt_keys:
+
+networks:
+  sentinelid-net:
+    driver: bridge
